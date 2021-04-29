@@ -1,3 +1,4 @@
+border-size: 10
 use-random-location: True
 coordinates:
   x: 0
