@@ -17,6 +17,7 @@ public class TabAutocomplete implements TabCompleter {
             List<String> parameters = new ArrayList<>();
             parameters.add("start");
             parameters.add("stop");
+            parameters.add("border");
             parameters.add("reload");
             parameters.add("coordinates");
             
