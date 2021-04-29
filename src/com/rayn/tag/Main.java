@@ -23,8 +23,20 @@ public class Main extends JavaPlugin implements Listener {
     private final String[] commands = {ChatColor.YELLOW + "Tag Commands:",
             ChatColor.YELLOW + "/tag start <length in minutes (optional)>" + ChatColor.BLUE + " - Starts the game of tag.",
             ChatColor.YELLOW + "/tag stop <length in minutes (optional)>" + ChatColor.BLUE + " - Stops the game of tag.",
+            ChatColor.YELLOW + "/tag here" + ChatColor.BLUE + " - Sets coordinates to your current position.",
+            ChatColor.YELLOW + "/tag border <size>" + ChatColor.BLUE + " - Sets the size of the border.",
             ChatColor.YELLOW + "/tag coordinates <x> <z>" + ChatColor.BLUE + " - Sets coordinates to use. Leave blank for random coordinates.",
             ChatColor.YELLOW + "/tag reload" + ChatColor.BLUE + " - Reloads the config."};
+    private final String[] enableMessages = {
+    	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    	"[TAG PLUGIN] Loaded and ready maybe",
+    	"Modified by JayUplink",
+    	"Dont sue mue",
+    	"wdym this is console spam?",
+    	"shut up.",
+    	"i will delete all worlds.",
+    	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    };
     private final BossBar bar = Bukkit.getServer().createBossBar("It player will display here.", BarColor.BLUE, BarStyle.SOLID);
     public boolean isPlayingTag;
     // so if you are trying to start an infinite game then it doesn't run the timer.
@@ -37,6 +49,7 @@ public class Main extends JavaPlugin implements Listener {
     FileConfiguration config = this.getConfig();
     private Player itPlayer;
     private WorldBorder worldBorder;
+    private int worldBorderSize;
     private double tagDuration = 1.0;
     
     @Override
@@ -51,12 +64,18 @@ public class Main extends JavaPlugin implements Listener {
         getCommand("tag").setTabCompleter(new TabAutocomplete());
         
         saveDefaultConfig();
+        config.getInt("border-size");
         
         isPlayingTag = false;
+        
+        for (String msg : enableMessages) {
+            Bukkit.getConsoleSender().sendMessage(msg);
+        }
     }
     
     @Override
     public void onDisable() {
+    	Bukkit.getConsoleSender().sendMessage("~~~~~~~~ SAYONARA KIDDO ~~~~~~~~");
     }
     
     // Maybe this makes it possible for other plugins to mess with who is it.
@@ -129,7 +148,6 @@ public class Main extends JavaPlugin implements Listener {
                         getItPlayer().getInventory().setHelmet(null);
                     }
                     setItPlayer(player);
-//                    player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 0, false, false, false));
                     isPlayingTag = true;
                     bar.setTitle(player.getName() + " is currently it!");
                     bar.setVisible(true);
@@ -155,8 +173,9 @@ public class Main extends JavaPlugin implements Listener {
                         tagPlayerManager.saveLocation(playerI.getUniqueId());
                         
                         // teleports to the random block
-                        highestBlock = worldBorderManager.findHighestBlock((int) randomLocation.getX(), (int) randomLocation.getZ(), world);
-                        playerI.teleport(highestBlock);
+                        // highestBlock = worldBorderManager.findHighestBlock((int) randomLocation.getX(), (int) randomLocation.getZ(), world);
+                        highestBlock = world.getHighestBlockAt(randomLocation).getLocation();
+                        playerI.teleport(highestBlock.add(0, 1, 0));
                         
                         Bukkit.getScheduler().runTaskLater(this, () -> playerI.playSound(playerI.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f), 5);
                         
@@ -165,7 +184,7 @@ public class Main extends JavaPlugin implements Listener {
                     // sets the worldborder to the same random block
                     worldBorder = world.getWorldBorder();
                     worldBorder.setCenter(randomLocation.getX(), randomLocation.getZ());
-                    worldBorder.setSize(50);
+                    worldBorder.setSize(worldBorderSize);
                     
                     // adds players to boss bar display
                     for (int i = 0; i < world.getPlayers().size(); i++) {
@@ -211,17 +230,51 @@ public class Main extends JavaPlugin implements Listener {
                 
             } else if (args[0].equalsIgnoreCase("reload")) {
                 this.reloadConfig();
+                worldBorderSize = config.getInt("border-size");
                 sender.sendMessage(ChatColor.GREEN + "Reloaded config.");
-                System.out.println(config.getBoolean("use-random-location"));
-                System.out.println(config.getInt("coordinates.x"));
-                System.out.println(config.getInt("coordinates.z"));
-                
                 return true;
                 
             } else if (args[0].equalsIgnoreCase("help")) {
                 for (String command : commands) {
                     sender.sendMessage(command);
                 }
+            } else if (args[0].equalsIgnoreCase("border")) {
+                if (args.length > 1) {
+                    int newsize;
+                    
+                    try {
+                        newsize = Integer.parseInt(args[1]);
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage(ChatColor.YELLOW + "Unable to set border size to that number.");
+                        return true;
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        sender.sendMessage(ChatColor.YELLOW + "Usage: /tag border <size>");
+                        return true;
+                    }
+                    
+                    config.set("border-size", newsize);
+                    worldBorderSize = newsize;
+                    
+                    sender.sendMessage(ChatColor.YELLOW + "Set new border size to " + ChatColor.BLUE + newsize  + ".");
+                } else {
+                	sender.sendMessage(ChatColor.YELLOW + "Incorrect command usage: /tag border <size>");
+                }
+                
+                return true;
+                
+            } else if (args[0].equalsIgnoreCase("here")) {
+            	Player player = (Player) sender;
+            	Location loc = player.getLocation();
+            	int x = loc.getBlockX();
+            	int z = loc.getBlockZ();
+            	
+                config.set("coordinates.x", x);
+                config.set("coordinates.z", z);
+                config.set("use-random-location", false);
+                
+                sender.sendMessage(ChatColor.YELLOW + "Set coordinates to " + ChatColor.BLUE +
+                        "X = " + x + ChatColor.YELLOW + " and " + ChatColor.BLUE + "Z = " + z + ".");
+            	
             } else if (args[0].equalsIgnoreCase("coordinates")) {
                 if (args.length > 1) {
                     int x;
@@ -298,9 +351,6 @@ public class Main extends JavaPlugin implements Listener {
                             setItPlayer(victim);
                             Bukkit.broadcastMessage(ChatColor.RED + victim.getName() + " is it!");
                             bar.setTitle(victim.getName() + " is currently it!");
-//                            victim.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 0, false, false, false));
-//                            damager.removePotionEffect(PotionEffectType.SPEED);
-                            
                             ItemStack itHelmet = new ItemStack(Material.LEATHER_HELMET);
                             LeatherArmorMeta meta = (LeatherArmorMeta) itHelmet.getItemMeta();
                             meta.setColor(Color.RED);
