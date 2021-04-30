@@ -29,12 +29,14 @@ public class Main extends JavaPlugin implements Listener {
             ChatColor.YELLOW + "/tag reload" + ChatColor.BLUE + " - Reloads the config."};
     private final String[] enableMessages = {
     	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
-    	"[TAG PLUGIN] Loaded and ready maybe",
+    	"~~~~~~~~~~~~~~ TAG PLUGIN ~~~~~~~~~~~~~~",
+    	"Loaded and ready maybe",
     	"Modified by JayUplink",
-    	"Dont sue mue",
+    	"Dont sue me",
     	"wdym this is console spam?",
     	"shut up.",
-    	"i will delete all worlds.",
+    	"i will delete everything",
+    	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
     	"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     };
     private final BossBar bar = Bukkit.getServer().createBossBar("It player will display here.", BarColor.BLUE, BarStyle.SOLID);
@@ -43,6 +45,8 @@ public class Main extends JavaPlugin implements Listener {
     public boolean usingTimer = false;
     protected boolean isSpawnProtected = false;
     protected Location highestBlock;
+    private Location exactGameSpawn;
+    private boolean useExactGameSpawn = false;
     TagTimer tagTimer = new TagTimer(this);
     WorldBorderManager worldBorderManager = new WorldBorderManager(this);
     TagPlayerManager tagPlayerManager = new TagPlayerManager(this);
@@ -159,32 +163,54 @@ public class Main extends JavaPlugin implements Listener {
                     itHelmet.setItemMeta(meta);
                     player.getInventory().setHelmet(itHelmet);
                     
-                    // gets random coordinates between 0 and 5000
-                    Location randomLocation = worldBorderManager.getTagLocation(player.getWorld());
                     
-                    // sets all players hunger to 20, plays sound, and teleports them to 0, 0
                     World world = player.getWorld();
-                    for (int i = 0; i < world.getPlayers().size(); i++) {
-                        Player playerI = world.getPlayers().get(i);
-                        playerI.setFoodLevel(20);
-                        playerI.setGameMode(GameMode.SURVIVAL);
-                        
-                        // saves old location before teleporting
-                        tagPlayerManager.saveLocation(playerI.getUniqueId());
-                        
-                        // teleports to the random block
-                        // highestBlock = worldBorderManager.findHighestBlock((int) randomLocation.getX(), (int) randomLocation.getZ(), world);
-                        highestBlock = world.getHighestBlockAt(randomLocation).getLocation();
-                        playerI.teleport(highestBlock.add(0, 1, 0));
-                        
-                        Bukkit.getScheduler().runTaskLater(this, () -> playerI.playSound(playerI.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f), 5);
-                        
+                    if (useExactGameSpawn) {
+                        for (int i = 0; i < world.getPlayers().size(); i++) {
+                            Player playerI = world.getPlayers().get(i);
+                            playerI.setFoodLevel(20);
+                            playerI.setGameMode(GameMode.SURVIVAL);
+                            
+                            // saves old location before teleporting
+                            tagPlayerManager.saveLocation(playerI.getUniqueId());
+                            
+                            // teleports to the random block
+                            // highestBlock = worldBorderManager.findHighestBlock((int) randomLocation.getX(), (int) randomLocation.getZ(), world);
+                            playerI.teleport(exactGameSpawn);
+                            
+                            Bukkit.getScheduler().runTaskLater(this, () -> playerI.playSound(playerI.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f), 5);   
+                        }
+                    	// sets the worldborder to the specific block
+                    	worldBorder = world.getWorldBorder();
+                    	worldBorder.setCenter(exactGameSpawn.getX(), exactGameSpawn.getZ());
+                    	worldBorder.setSize(worldBorderSize);
+                    	
+                    } else {
+                    	// gets random coordinates between 0 and 5000
+                    	Location randomLocation = worldBorderManager.getTagLocation(player.getWorld());
+                    	
+                    	// sets all players hunger to 20, plays sound, and teleports them to 0, 0
+                    	for (int i = 0; i < world.getPlayers().size(); i++) {
+                    		Player playerI = world.getPlayers().get(i);
+                    		playerI.setFoodLevel(20);
+                    		playerI.setGameMode(GameMode.SURVIVAL);
+                    		
+                    		// saves old location before teleporting
+                    		tagPlayerManager.saveLocation(playerI.getUniqueId());
+                    		
+                    		// teleports to the random block
+                    		highestBlock = world.getHighestBlockAt(randomLocation).getLocation();
+                    		playerI.teleport(highestBlock.add(0, 1, 0));
+                    		
+                    		Bukkit.getScheduler().runTaskLater(this, () -> playerI.playSound(playerI.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f), 5);
+                    	}
+                    	
+                    	// sets the worldborder to the same random block
+                    	worldBorder = world.getWorldBorder();
+                    	worldBorder.setCenter(randomLocation.getX(), randomLocation.getZ());
+                    	worldBorder.setSize(worldBorderSize);
+                    	
                     }
-                    
-                    // sets the worldborder to the same random block
-                    worldBorder = world.getWorldBorder();
-                    worldBorder.setCenter(randomLocation.getX(), randomLocation.getZ());
-                    worldBorder.setSize(worldBorderSize);
                     
                     // adds players to boss bar display
                     for (int i = 0; i < world.getPlayers().size(); i++) {
@@ -264,16 +290,11 @@ public class Main extends JavaPlugin implements Listener {
                 
             } else if (args[0].equalsIgnoreCase("here")) {
             	Player player = (Player) sender;
-            	Location loc = player.getLocation();
-            	int x = loc.getBlockX();
-            	int z = loc.getBlockZ();
-            	
-                config.set("coordinates.x", x);
-                config.set("coordinates.z", z);
-                config.set("use-random-location", false);
+            	exactGameSpawn = player.getLocation();
+            	useExactGameSpawn = true;
                 
-                sender.sendMessage(ChatColor.YELLOW + "Set coordinates to " + ChatColor.BLUE +
-                        "X = " + x + ChatColor.YELLOW + " and " + ChatColor.BLUE + "Z = " + z + ".");
+                sender.sendMessage(ChatColor.YELLOW + "Using exact location (Using your Y coordinate):" + ChatColor.BLUE +
+                        "X = " + exactGameSpawn.getBlockX() + ChatColor.YELLOW + ", " + ChatColor.BLUE + "Z = " + exactGameSpawn.getBlockZ() + ".");
             	
             } else if (args[0].equalsIgnoreCase("coordinates")) {
                 if (args.length > 1) {
@@ -298,6 +319,7 @@ public class Main extends JavaPlugin implements Listener {
                     sender.sendMessage(ChatColor.YELLOW + "Set coordinates to " + ChatColor.BLUE +
                             "X = " + x + ChatColor.YELLOW + " and " + ChatColor.BLUE + "Z = " + z + ".");
                 } else {
+                	useExactGameSpawn = false;
                     config.set("use-random-location", true);
                     sender.sendMessage(ChatColor.YELLOW + "Now uses random coordinates.");
                 }
