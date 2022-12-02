@@ -1,5 +1,6 @@
 # Tag
-forkyforky
+Forked to fix some issues, Rayn322's has been updated since.
+This project is no longer useful and therefore has been archived.
  
 
 # Using the plugin
